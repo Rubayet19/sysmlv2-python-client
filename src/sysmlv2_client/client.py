@@ -159,7 +159,6 @@ class SysMLV2Client:
         """
         endpoint = f"/projects/{project_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
-
     def get_element(self, project_id: str, element_id: str, commit_id: str = "main") -> Dict[str, Any]:
         """
         Retrieves a specific element from a commit within a project.

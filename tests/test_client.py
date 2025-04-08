@@ -120,7 +120,7 @@ def test_create_project_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects"
     request_data = {"name": "New Project", "description": "A test project"}
     response_data = {"id": "new_proj_id", **request_data} # Echo back data + ID
-    requests_mock.post(mock_url, json=response_data, status_code=201)
+    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
 
     created_project = client.create_project(request_data)
 
@@ -243,7 +243,7 @@ def test_create_commit_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits"
     request_data = {"message": "Initial commit", "parentCommitId": None}
     response_data = {"id": "new_commit_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=201)
+    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
 
     created_commit = client.create_commit(TEST_PROJECT_ID, request_data)
 
@@ -291,7 +291,6 @@ def test_get_project_by_id_not_found(client, requests_mock):
 
     with pytest.raises(SysMLV2NotFoundError):
         client.get_project_by_id("not_a_project")
-
 # --- Test Get Commit By ID ---
 
 def test_get_commit_by_id_success(client, requests_mock):
@@ -360,7 +359,7 @@ def test_create_branch_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches"
     request_data = {"name": "feature-branch", "head": {"@id": TEST_COMMIT_ID}}
     response_data = {"id": "new_branch_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=201)
+    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
     branch = client.create_branch(TEST_PROJECT_ID, request_data)
     assert branch == response_data
     assert requests_mock.last_request.json() == request_data
@@ -400,7 +399,7 @@ def test_create_tag_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags"
     request_data = {"name": "v1.0-release", "taggedCommit": {"@id": TEST_COMMIT_ID}}
     response_data = {"id": "new_tag_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=201)
+    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
     tag = client.create_tag(TEST_PROJECT_ID, request_data)
     assert tag == response_data
     assert requests_mock.last_request.json() == request_data
