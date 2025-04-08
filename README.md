@@ -42,8 +42,6 @@ sys.path.insert(0, os.path.abspath('./src'))
 from sysmlv2_client import SysMLV2Client
 ```
 
-*(Future work could include packaging this library for easier installation via pip).*
-
 ## Basic Usage
 
 ```python
