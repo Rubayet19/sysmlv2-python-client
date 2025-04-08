@@ -109,7 +109,7 @@ except Exception as e:
 
 ```
 
-See the [examples/basic_usage.ipynb](examples/basic_usage.ipynb) Jupyter Notebook for more detailed examples covering commits, branches, tags, and element retrieval/modification via commits.
+See the [example/basic_usage.ipynb](examples/basic_usage.ipynb) Jupyter Notebook for more detailed examples covering commits, branches, tags, and element retrieval/modification via commits.
 
 ## Running Tests
 
