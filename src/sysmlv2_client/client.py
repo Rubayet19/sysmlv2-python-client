@@ -1,5 +1,3 @@
-# src/sysmlv2_client/client.py
-
 import requests
 import json
 from typing import Optional, Dict, Any, List
@@ -14,17 +12,7 @@ from .exceptions import (
 )
 
 class SysMLV2Client:
-    """
-    A client for interacting with a SysML v2 API server (like OpenMBEE Flexo).
-    """
     def __init__(self, base_url: str, bearer_token: str):
-        """
-        Initializes the SysMLV2Client.
-
-        Args:
-            base_url: The base URL of the SysML v2 API server (e.g., "http://localhost:8083").
-            bearer_token: The bearer token for authentication (including "Bearer ").
-        """
         if not base_url:
             raise ValueError("base_url cannot be empty.")
         if not bearer_token or not bearer_token.lower().startswith("bearer "):
@@ -36,7 +24,6 @@ class SysMLV2Client:
             "Authorization": self._bearer_token,
             "Content-Type": "application/json",
             "Accept": "application/json",
-            # Add other common headers if needed
         }
         self._session = requests.Session()
         self._session.headers.update(self._headers)
@@ -49,27 +36,6 @@ class SysMLV2Client:
         data: Optional[Dict[str, Any]] = None,
         expected_status: int = 200,
     ) -> Dict[str, Any]:
-        """
-        Internal helper method to make API requests.
-
-        Args:
-            method: HTTP method (GET, POST, PUT, DELETE).
-            endpoint: API endpoint path (e.g., "/projects").
-            params: URL parameters.
-            data: Request body data (will be JSON encoded).
-            expected_status: The expected HTTP status code for a successful request.
-
-        Returns:
-            The JSON response from the API.
-
-        Raises:
-            SysMLV2AuthError: If authentication fails (401 or 403).
-            SysMLV2NotFoundError: If the resource is not found (404).
-            SysMLV2BadRequestError: If the request is malformed (400).
-            SysMLV2ConflictError: If a conflict occurs (409).
-            SysMLV2APIError: For other API-related errors.
-            SysMLV2Error: For general client or connection errors.
-        """
         url = f"{self.base_url}{endpoint}"
         json_data = json.dumps(data) if data else None
 
@@ -79,8 +45,6 @@ class SysMLV2Client:
                 url=url,
                 params=params,
                 data=json_data,
-                # Consider adding a timeout
-                # timeout=10
             )
 
             # Check for specific error codes first
@@ -89,7 +53,6 @@ class SysMLV2Client:
             if response.status_code == 404:
                 raise SysMLV2NotFoundError(f"Resource not found at {endpoint}: {response.text}")
             if response.status_code == 400:
-                 # Try to parse error details if available
                 try:
                     error_details = response.json()
                 except json.JSONDecodeError:
@@ -117,119 +80,62 @@ class SysMLV2Client:
         except json.JSONDecodeError as e:
              raise SysMLV2Error(f"Failed to decode JSON response from {url}: {e}. Response text: {response.text}") from e
 
-    # --- Core API Methods will be added below ---
+    # --- Core API Methods ---
 
     def get_projects(self) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of projects.
-        Corresponds to: GET /projects
-        """
-        # Assuming the API returns a structure like {"elements": [...]} or similar
+
         response_data = self._request(method="GET", endpoint="/projects", expected_status=200)
-        # Extract the list of projects, default to empty list if not found
-        # TODO: Verify the actual key for the list in the API response (e.g., 'projects', 'elements')
         if isinstance(response_data, list):
-            return response_data # API returned a list directly
+            return response_data 
         elif isinstance(response_data, dict):
-             # TODO: Verify the actual key for the list in the API response (e.g., 'projects', 'elements')
-            return response_data.get('elements', []) # Try to extract from dict
+            return response_data.get('elements', []) 
         else:
-            # Unexpected response type, raise an error or return empty list?
-            # For now, return empty list, but logging a warning might be good
             return []
 
     def create_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Creates a new project.
-        Corresponds to: POST /projects
-        Args:
-            project_data: Dictionary representing the project to create.
-                          Structure depends on the API specification.
-        """
         return self._request(
             method="POST",
             endpoint="/projects",
             data=project_data,
-            expected_status=200  # Flexo seems to return 200 OK on successful POST
+            expected_status=200  
         )
     def get_project_by_id(self, project_id: str) -> Dict[str, Any]:
-        """
-        Retrieves a specific project by its ID.
-        Corresponds to: GET /projects/{project_id}
-        """
         endpoint = f"/projects/{project_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
+    
     def get_element(self, project_id: str, element_id: str, commit_id: str = "main") -> Dict[str, Any]:
-        """
-        Retrieves a specific element from a commit within a project.
-        Corresponds to: GET /projects/{project_id}/commits/{commit_id}/elements/{element_id}
-        """
         endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{element_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
 
-    # Note: create_element, update_element, delete_element methods removed
-    # as modifications are handled via create_commit according to API spec/cookbook examples.
-
     def get_owned_elements(self, project_id: str, element_id: str, commit_id: str = "main") -> List[Dict[str, Any]]:
-        """
-        Retrieves elements owned by a specific element.
-        NOTE: Exact endpoint/method needs verification against API spec/cookbook.
-        Might be GET /projects/{project_id}/commits/{commit_id}/elements/{element_id}/owned-elements
-        or potentially part of a broader query mechanism.
-        """
-        # NOTE: Endpoint needs verification based on actual API spec
+
         endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{element_id}/owned"
         response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
-        # Assuming the API returns a structure like {"elements": [...]}
-        # TODO: Verify the actual key for the list in the API response
         if isinstance(response_data, list):
-            return response_data # API returned a list directly
+            return response_data 
         elif isinstance(response_data, dict):
-            # TODO: Verify the actual key for the list in the API response
-            return response_data.get('elements', []) # Try to extract from dict
+            return response_data.get('elements', [])
         else:
-            # Unexpected response type
             return []
 
     def create_commit(self, project_id: str, commit_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Creates a new commit in a project. Also used to create, update, or delete
-        elements by including a 'change' array within the commit_data.
-        Corresponds to: POST /projects/{project_id}/commits
-        Args:
-            project_id: The ID of the project.
-            commit_data: Dictionary representing the commit details.
-                         To modify elements, include a 'change' key with a list of
-                         DataVersion objects specifying the element 'payload' and 'identity'.
-                         Set payload to None for deletion. See API Cookbook for examples.
-        """
         endpoint = f"/projects/{project_id}/commits"
         return self._request(
             method="POST",
             endpoint=endpoint,
             data=commit_data,
-            expected_status=200 # Assuming consistency with create_project
+            expected_status=200 
         )
     def get_commit_by_id(self, project_id: str, commit_id: str) -> Dict[str, Any]:
-        """
-        Retrieves a specific commit by its ID within a project.
-        Corresponds to: GET /projects/{project_id}/commits/{commit_id}
-        """
         endpoint = f"/projects/{project_id}/commits/{commit_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
 
     def list_commits(self, project_id: str) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of commits for a specific project.
-        Corresponds to: GET /projects/{project_id}/commits
-        """
         endpoint = f"/projects/{project_id}/commits"
         response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
-        # Assuming the API returns a list directly or a dict with an 'elements' key
         if isinstance(response_data, list):
             return response_data
         elif isinstance(response_data, dict):
-             # TODO: Verify the actual key for the list (e.g., 'commits', 'elements')
             return response_data.get('elements', [])
         else:
             return []
@@ -237,51 +143,29 @@ class SysMLV2Client:
     # --- Branch Management ---
 
     def list_branches(self, project_id: str) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of branches for a specific project.
-        Corresponds to: GET /projects/{project_id}/branches
-        """
         endpoint = f"/projects/{project_id}/branches"
         response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
-        # Assuming the API returns a list directly or a dict with an 'elements' key
         if isinstance(response_data, list):
             return response_data
         elif isinstance(response_data, dict):
-             # TODO: Verify the actual key for the list (e.g., 'branches', 'elements')
             return response_data.get('elements', [])
         else:
             return []
 
     def create_branch(self, project_id: str, branch_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Creates a new branch in a project.
-        Corresponds to: POST /projects/{project_id}/branches
-        Args:
-            project_id: The ID of the project.
-            branch_data: Dictionary representing the branch details (e.g., name, head commit).
-                         Requires 'name' and 'head' commit ID according to spec.
-        """
         endpoint = f"/projects/{project_id}/branches"
         return self._request(
             method="POST",
             endpoint=endpoint,
             data=branch_data,
-            expected_status=200 # Assuming consistency with create_project
+            expected_status=200 
         )
 
     def get_branch_by_id(self, project_id: str, branch_id: str) -> Dict[str, Any]:
-        """
-        Retrieves a specific branch by its ID within a project.
-        Corresponds to: GET /projects/{project_id}/branches/{branch_id}
-        """
         endpoint = f"/projects/{project_id}/branches/{branch_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
 
     def delete_branch(self, project_id: str, branch_id: str) -> None:
-        """
-        Deletes a branch by its ID within a project.
-        Corresponds to: DELETE /projects/{project_id}/branches/{branch_id}
-        """
         endpoint = f"/projects/{project_id}/branches/{branch_id}"
         self._request(method="DELETE", endpoint=endpoint, expected_status=204)
         return None
@@ -289,51 +173,29 @@ class SysMLV2Client:
     # --- Tag Management ---
 
     def list_tags(self, project_id: str) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of tags for a specific project.
-        Corresponds to: GET /projects/{project_id}/tags
-        """
         endpoint = f"/projects/{project_id}/tags"
         response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
-        # Assuming the API returns a list directly or a dict with an 'elements' key
         if isinstance(response_data, list):
             return response_data
         elif isinstance(response_data, dict):
-             # TODO: Verify the actual key for the list (e.g., 'tags', 'elements')
             return response_data.get('elements', [])
         else:
             return []
 
     def create_tag(self, project_id: str, tag_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Creates a new tag in a project.
-        Corresponds to: POST /projects/{project_id}/tags
-        Args:
-            project_id: The ID of the project.
-            tag_data: Dictionary representing the tag details (e.g., name, tagged commit).
-                      Requires 'name' and 'taggedCommit' commit ID according to spec.
-        """
         endpoint = f"/projects/{project_id}/tags"
         return self._request(
             method="POST",
             endpoint=endpoint,
             data=tag_data,
-            expected_status=200 # Assuming consistency with create_project
+            expected_status=200 
         )
 
     def get_tag_by_id(self, project_id: str, tag_id: str) -> Dict[str, Any]:
-        """
-        Retrieves a specific tag by its ID within a project.
-        Corresponds to: GET /projects/{project_id}/tags/{tag_id}
-        """
         endpoint = f"/projects/{project_id}/tags/{tag_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
 
     def delete_tag(self, project_id: str, tag_id: str) -> None:
-        """
-        Deletes a tag by its ID within a project.
-        Corresponds to: DELETE /projects/{project_id}/tags/{tag_id}
-        """
         endpoint = f"/projects/{project_id}/tags/{tag_id}"
         self._request(method="DELETE", endpoint=endpoint, expected_status=204)
         return None
@@ -341,17 +203,11 @@ class SysMLV2Client:
     # --- Element/Relationship Listing ---
 
     def list_elements(self, project_id: str, commit_id: str = "main") -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of all elements for a specific commit within a project.
-        Corresponds to: GET /projects/{project_id}/commits/{commit_id}/elements
-        """
         endpoint = f"/projects/{project_id}/commits/{commit_id}/elements"
         response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
-        # Assuming the API returns a list directly or a dict with an 'elements' key
         if isinstance(response_data, list):
             return response_data
         elif isinstance(response_data, dict):
-             # TODO: Verify the actual key for the list (e.g., 'elements')
             return response_data.get('elements', [])
         else:
             return []
@@ -363,23 +219,12 @@ class SysMLV2Client:
         commit_id: str = "main",
         direction: str = "both"
     ) -> List[Dict[str, Any]]:
-        """
-        Retrieves relationships connected to a specific element.
-        Corresponds to: GET /projects/{project_id}/commits/{commit_id}/elements/{relatedElementId}/relationships
-        Args:
-            project_id: The ID of the project.
-            related_element_id: The ID of the element whose relationships are sought.
-            commit_id: The commit ID (defaults to 'main').
-            direction: Filter for relationship direction ('in', 'out', 'both'). Defaults to 'both'.
-        """
         endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{related_element_id}/relationships"
         params = {'direction': direction}
         response_data = self._request(method="GET", endpoint=endpoint, params=params, expected_status=200)
-        # Assuming the API returns a list directly or a dict with an 'elements' key
         if isinstance(response_data, list):
             return response_data
         elif isinstance(response_data, dict):
-             # TODO: Verify the actual key for the list (e.g., 'relationships', 'elements')
             return response_data.get('elements', [])
         else:
             return []

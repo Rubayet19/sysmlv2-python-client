@@ -5,9 +5,12 @@ A basic Python client library for interacting with a SysML v2 API server, specif
 ## Features
 
 *   Provides methods for core SysML v2 operations:
-    *   Projects: Get, Create
-    *   Elements: Get, Create, Update, Delete, Get Owned
-    *   Commits: Create
+    *   **Projects:** Get List, Create, Get by ID
+    *   **Commits:** Create (handles element create/update/delete), Get by ID, List
+    *   **Branches:** List, Create, Get by ID, Delete
+    *   **Tags:** List, Create, Get by ID, Delete
+    *   **Elements:** Get by ID, List All in Commit, Get Owned by Element
+    *   **Relationships:** List for Element
 *   Handles authentication using Bearer tokens.
 *   Includes basic error handling and custom exceptions.
 
@@ -23,16 +26,7 @@ This client is designed to work with a running instance of the OpenMBEE Flexo Sy
     ```bash
     docker compose up -d
     ```
-    *(Note: On Apple Silicon Macs, ensure Docker Desktop's Rosetta emulation is enabled and `platform: linux/amd64` is set in the `docker-compose.yml` if you encounter architecture issues).*
-*   **Initial Org Setup (Potential Manual Step):** For a fresh database, you may need to perform an initial organization setup.
-    *   Download/locate the `flexo-sysmlv2.postman_collection.json` file (should be in `flexo-setup/docker-compose/`).
-    *   Import it into Postman.
-    *   Go to the collection's "Variables" tab and set:
-        *   `flexoHost` (CURRENT VALUE) to `localhost:8080`
-        *   `host` (CURRENT VALUE) to `localhost:8083`
-    *   Save the variables.
-    *   Run the first request in the `sysmlv2.` folder (likely named "Create Org"). Check for a successful response.
-    *   Refer to `flexo-setup/docker-compose/README.md` for more details.
+*   **Initial Org Setup (Potential Manual Step):** For a fresh database, you may need to perform an initial organization setup using Postman as described in `flexo-setup/docker-compose/README.md`.
 *   **Authentication Token:** The required Bearer token for the client is found in `flexo-setup/docker-compose/env/flexo-sysmlv2.env` under the `FLEXO_AUTH` variable. Copy this entire value (including `Bearer `).
 
 ### 2. Install Client (Development)
@@ -54,30 +48,59 @@ from sysmlv2_client import SysMLV2Client
 
 ```python
 from sysmlv2_client import SysMLV2Client, SysMLV2Error
+from pprint import pprint
+import uuid # For element IDs
 
 BASE_URL = "http://localhost:8083"
 # Replace with the actual token from flexo-setup/docker-compose/env/flexo-sysmlv2.env
-BEARER_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." # Truncated for example
+BEARER_TOKEN = "Bearer YOUR_TOKEN_HERE"
 
 try:
     client = SysMLV2Client(base_url=BASE_URL, bearer_token=BEARER_TOKEN)
     print("Client initialized.")
 
     # Get projects
+    print("\\n--- Getting Projects ---")
     projects = client.get_projects()
-    print(f"Found projects: {projects}")
+    print(f"Found {len(projects)} projects.")
+    for project in projects:
+        print(f"  - Name: {project.get('name', 'N/A')}, ID: {project.get('@id', 'N/A')}")
 
     # Create a project (example data)
-    new_proj_data = {"@type": "Project", "name": "Client Test Project"}
+    print("\\n--- Creating Project ---")
+    new_proj_data = {"@type": "Project", "name": "Client README Example"}
     created_proj = client.create_project(new_proj_data)
-    print(f"Created project: {created_proj}")
-    project_id = created_proj.get('id')
+    print(f"Created project:")
+    pprint(created_proj)
+    project_id = created_proj.get('@id')
 
     if project_id:
-        # Create an element (example data)
-        new_elem_data = {"@type": "PartDefinition", "name": "MyBlock"}
-        created_elem = client.create_element(project_id, new_elem_data)
-        print(f"Created element: {created_elem}")
+        # Create a commit that also creates an element
+        print(f"\\n--- Creating Commit with Element in Project {project_id} ---")
+        element_id = str(uuid.uuid4())
+        commit_data = {
+            "@type": "Commit",
+            "description": "Add initial block",
+            "change": [{
+                "@type": "DataVersion",
+                "payload": {
+                    "@id": element_id,
+                    "@type": "BlockDefinition", # Example type
+                    "name": "MyExampleBlock"
+                }
+            }]
+        }
+        created_commit = client.create_commit(project_id, commit_data)
+        print("Commit created:")
+        pprint(created_commit)
+        commit_id = created_commit.get('@id')
+
+        if commit_id:
+            # List elements in the new commit
+            print(f"\\n--- Listing Elements in Commit {commit_id} ---")
+            elements = client.list_elements(project_id, commit_id)
+            print(f"Found {len(elements)} elements:")
+            pprint(elements)
 
 except SysMLV2Error as e:
     print(f"An API error occurred: {e}")
@@ -88,7 +111,7 @@ except Exception as e:
 
 ```
 
-See the [examples/basic_usage.ipynb](examples/basic_usage.ipynb) Jupyter Notebook for more detailed examples of creating, reading, updating, and deleting elements.
+See the [examples/basic_usage.ipynb](examples/basic_usage.ipynb) Jupyter Notebook for more detailed examples covering commits, branches, tags, and element retrieval/modification via commits.
 
 ## Running Tests
 
@@ -102,13 +125,3 @@ Unit tests are implemented using `pytest` and `requests-mock`.
     ```bash
     pytest
     ```
-
-## TODO / Future Improvements
-
-*   Verify the exact endpoint for `get_owned_elements`.
-*   Verify the expected response key (`elements`) for list endpoints (`get_projects`, `get_owned_elements`).
-*   Implement optional Pydantic models (`src/sysmlv2_client/models.py`) for request/response data validation and structure.
-*   Add more comprehensive error handling based on specific API error responses.
-*   Package the library for `pip` installation.
-*   Add more detailed documentation (e.g., API method specifics).
-*   Implement remaining SysML v2 API endpoints as needed.

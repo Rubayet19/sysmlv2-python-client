@@ -1,5 +1,3 @@
-# tests/test_client.py
-
 import pytest
 import requests_mock
 import requests
@@ -33,8 +31,7 @@ def client():
 def mock_session(client):
     """Mocks the requests session used by the client."""
     adapter = requests_mock.Adapter()
-    client._session.mount('mock://', adapter) # Use mock adapter for test URLs if needed
-    # Primarily, we'll mock specific URLs using requests_mock directly in tests
+    client._session.mount('mock://', adapter)
     return adapter
 
 
@@ -53,7 +50,7 @@ def test_client_initialization_invalid_token():
     with pytest.raises(ValueError, match="bearer_token must be provided and start with 'Bearer '"):
         SysMLV2Client(base_url=TEST_BASE_URL, bearer_token="INVALID_TOKEN")
     with pytest.raises(ValueError, match="bearer_token must be provided and start with 'Bearer '"):
-        SysMLV2Client(base_url=TEST_BASE_URL, bearer_token="") # Empty token
+        SysMLV2Client(base_url=TEST_BASE_URL, bearer_token="") 
 
 def test_client_initialization_invalid_url():
     """Tests client initialization failure with invalid base URL."""
@@ -79,7 +76,7 @@ def test_get_projects_success(client, requests_mock):
 def test_get_projects_success_empty(client, requests_mock):
     """Tests successfully retrieving an empty list of projects."""
     mock_url = f"{TEST_BASE_URL}/projects"
-    mock_response_data = {"elements": []} # API returns empty list
+    mock_response_data = {"elements": []} 
     requests_mock.get(mock_url, json=mock_response_data, status_code=200)
 
     projects = client.get_projects()
@@ -89,13 +86,12 @@ def test_get_projects_success_empty(client, requests_mock):
 def test_get_projects_success_no_elements_key(client, requests_mock):
     """Tests retrieving projects when the response structure is unexpected."""
     mock_url = f"{TEST_BASE_URL}/projects"
-    mock_response_data = [{"id": "proj1", "name": "Project 1"}] # Missing 'elements' key
+    mock_response_data = [{"id": "proj1", "name": "Project 1"}] 
     requests_mock.get(mock_url, json=mock_response_data, status_code=200)
 
-    # The client should return an empty list due to .get('elements', [])
     projects = client.get_projects()
 
-    assert projects == mock_response_data # Should return the list directly
+    assert projects == mock_response_data 
 
 def test_get_projects_auth_error(client, requests_mock):
     """Tests authentication error during get_projects."""
@@ -119,8 +115,8 @@ def test_create_project_success(client, requests_mock):
     """Tests successfully creating a project."""
     mock_url = f"{TEST_BASE_URL}/projects"
     request_data = {"name": "New Project", "description": "A test project"}
-    response_data = {"id": "new_proj_id", **request_data} # Echo back data + ID
-    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
+    response_data = {"id": "new_proj_id", **request_data}
+    requests_mock.post(mock_url, json=response_data, status_code=200) 
 
     created_project = client.create_project(request_data)
 
@@ -134,7 +130,7 @@ def test_create_project_success(client, requests_mock):
 def test_create_project_bad_request(client, requests_mock):
     """Tests a 400 Bad Request error during project creation."""
     mock_url = f"{TEST_BASE_URL}/projects"
-    request_data = {"name": "Missing required field"} # Invalid data
+    request_data = {"name": "Missing required field"} 
     error_response = {"error": "Missing description"}
     requests_mock.post(mock_url, json=error_response, status_code=400)
 
@@ -165,7 +161,7 @@ def test_create_project_api_error(client, requests_mock):
     request_data = {"name": "New Project"}
     requests_mock.post(mock_url, status_code=503, text="Service Unavailable")
 
-    # Expecting 201, but got 503
+
     with pytest.raises(SysMLV2APIError, match="Unexpected status code for POST /projects"):
         client.create_project(request_data)
 
@@ -200,14 +196,11 @@ def test_get_element_auth_error(client, requests_mock):
     with pytest.raises(SysMLV2AuthError):
         client.get_element(TEST_PROJECT_ID, TEST_ELEMENT_ID, TEST_COMMIT_ID)
 
-# Note: Tests for create_element, update_element, delete_element removed
-# as these operations are handled via create_commit.
 
 # --- Test Get Owned Elements ---
 
 def test_get_owned_elements_success(client, requests_mock):
     """Tests successfully retrieving owned elements."""
-    # Note: Using the assumed endpoint, needs verification
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/{TEST_ELEMENT_ID}/owned"
     mock_response_data = {"elements": [{"id": "owned_elem_1"}, {"id": "owned_elem_2"}]}
     requests_mock.get(mock_url, json=mock_response_data, status_code=200)
@@ -243,7 +236,7 @@ def test_create_commit_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits"
     request_data = {"message": "Initial commit", "parentCommitId": None}
     response_data = {"id": "new_commit_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
+    requests_mock.post(mock_url, json=response_data, status_code=200) 
 
     created_commit = client.create_commit(TEST_PROJECT_ID, request_data)
 
@@ -255,7 +248,7 @@ def test_create_commit_success(client, requests_mock):
 def test_create_commit_bad_request(client, requests_mock):
     """Tests 400 Bad Request during commit creation."""
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits"
-    request_data = {} # Missing message
+    request_data = {} 
     requests_mock.post(mock_url, status_code=400, json={"error": "Missing commit message"})
 
     with pytest.raises(SysMLV2BadRequestError):
@@ -291,6 +284,7 @@ def test_get_project_by_id_not_found(client, requests_mock):
 
     with pytest.raises(SysMLV2NotFoundError):
         client.get_project_by_id("not_a_project")
+
 # --- Test Get Commit By ID ---
 
 def test_get_commit_by_id_success(client, requests_mock):
@@ -317,7 +311,7 @@ def test_get_commit_by_id_not_found(client, requests_mock):
 def test_list_commits_success(client, requests_mock):
     """Tests successfully listing commits."""
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits"
-    mock_response_data = [{"id": "commit1"}, {"id": "commit2"}] # API returns list directly
+    mock_response_data = [{"id": "commit1"}, {"id": "commit2"}] 
     requests_mock.get(mock_url, json=mock_response_data, status_code=200)
 
     commits = client.list_commits(TEST_PROJECT_ID)
@@ -359,7 +353,7 @@ def test_create_branch_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches"
     request_data = {"name": "feature-branch", "head": {"@id": TEST_COMMIT_ID}}
     response_data = {"id": "new_branch_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
+    requests_mock.post(mock_url, json=response_data, status_code=200) 
     branch = client.create_branch(TEST_PROJECT_ID, request_data)
     assert branch == response_data
     assert requests_mock.last_request.json() == request_data
@@ -399,7 +393,7 @@ def test_create_tag_success(client, requests_mock):
     mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags"
     request_data = {"name": "v1.0-release", "taggedCommit": {"@id": TEST_COMMIT_ID}}
     response_data = {"id": "new_tag_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=200) # Expect 200 based on live API
+    requests_mock.post(mock_url, json=response_data, status_code=200) 
     tag = client.create_tag(TEST_PROJECT_ID, request_data)
     assert tag == response_data
     assert requests_mock.last_request.json() == request_data
