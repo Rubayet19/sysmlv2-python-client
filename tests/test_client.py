@@ -200,85 +200,8 @@ def test_get_element_auth_error(client, requests_mock):
     with pytest.raises(SysMLV2AuthError):
         client.get_element(TEST_PROJECT_ID, TEST_ELEMENT_ID, TEST_COMMIT_ID)
 
-# --- Test Create Element ---
-
-def test_create_element_success(client, requests_mock):
-    """Tests successfully creating an element."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements"
-    request_data = {"name": "New Element", "type": "Part"}
-    response_data = {"id": "new_elem_id", **request_data}
-    requests_mock.post(mock_url, json=response_data, status_code=201)
-
-    created_element = client.create_element(TEST_PROJECT_ID, request_data, TEST_COMMIT_ID)
-
-    assert created_element == response_data
-    assert requests_mock.last_request.url == mock_url
-    assert requests_mock.last_request.method == "POST"
-    assert requests_mock.last_request.json() == request_data
-
-def test_create_element_bad_request(client, requests_mock):
-    """Tests a 400 Bad Request error during element creation."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements"
-    request_data = {"name": "Invalid"} # Missing type maybe
-    requests_mock.post(mock_url, status_code=400, json={"error": "Missing type field"})
-
-    with pytest.raises(SysMLV2BadRequestError):
-        client.create_element(TEST_PROJECT_ID, request_data, TEST_COMMIT_ID)
-
-# --- Test Update Element ---
-
-def test_update_element_success(client, requests_mock):
-    """Tests successfully updating an element."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/{TEST_ELEMENT_ID}"
-    request_data = {"name": "Updated Element Name"}
-    response_data = {"id": TEST_ELEMENT_ID, **request_data}
-    requests_mock.put(mock_url, json=response_data, status_code=200)
-
-    updated_element = client.update_element(TEST_PROJECT_ID, TEST_ELEMENT_ID, request_data, TEST_COMMIT_ID)
-
-    assert updated_element == response_data
-    assert requests_mock.last_request.url == mock_url
-    assert requests_mock.last_request.method == "PUT"
-    assert requests_mock.last_request.json() == request_data
-
-def test_update_element_not_found(client, requests_mock):
-    """Tests updating a non-existent element (404)."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/not_found_id"
-    request_data = {"name": "Updated Name"}
-    requests_mock.put(mock_url, status_code=404)
-
-    with pytest.raises(SysMLV2NotFoundError):
-        client.update_element(TEST_PROJECT_ID, "not_found_id", request_data, TEST_COMMIT_ID)
-
-# --- Test Delete Element ---
-
-def test_delete_element_success(client, requests_mock):
-    """Tests successfully deleting an element."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/{TEST_ELEMENT_ID}"
-    requests_mock.delete(mock_url, status_code=204) # No content expected
-
-    result = client.delete_element(TEST_PROJECT_ID, TEST_ELEMENT_ID, TEST_COMMIT_ID)
-
-    assert result is None # Method returns None on success
-    assert requests_mock.last_request.url == mock_url
-    assert requests_mock.last_request.method == "DELETE"
-
-def test_delete_element_not_found(client, requests_mock):
-    """Tests deleting a non-existent element (404)."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/not_found_id"
-    requests_mock.delete(mock_url, status_code=404)
-
-    with pytest.raises(SysMLV2NotFoundError):
-        client.delete_element(TEST_PROJECT_ID, "not_found_id", TEST_COMMIT_ID)
-
-def test_delete_element_auth_error(client, requests_mock):
-    """Tests authentication error during delete_element."""
-    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/{TEST_ELEMENT_ID}"
-    requests_mock.delete(mock_url, status_code=401)
-
-    with pytest.raises(SysMLV2AuthError):
-        client.delete_element(TEST_PROJECT_ID, TEST_ELEMENT_ID, TEST_COMMIT_ID)
-
+# Note: Tests for create_element, update_element, delete_element removed
+# as these operations are handled via create_commit.
 
 # --- Test Get Owned Elements ---
 
@@ -346,3 +269,202 @@ def test_create_commit_project_not_found(client, requests_mock):
 
     with pytest.raises(SysMLV2NotFoundError):
         client.create_commit("invalid_project", request_data)
+
+
+# --- Test Get Project By ID ---
+
+def test_get_project_by_id_success(client, requests_mock):
+    """Tests successfully retrieving a specific project."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}"
+    mock_response_data = {"id": TEST_PROJECT_ID, "name": "Test Project 1"}
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+
+    project = client.get_project_by_id(TEST_PROJECT_ID)
+
+    assert project == mock_response_data
+    assert requests_mock.last_request.url == mock_url
+
+def test_get_project_by_id_not_found(client, requests_mock):
+    """Tests 404 when getting a non-existent project."""
+    mock_url = f"{TEST_BASE_URL}/projects/not_a_project"
+    requests_mock.get(mock_url, status_code=404)
+
+    with pytest.raises(SysMLV2NotFoundError):
+        client.get_project_by_id("not_a_project")
+
+# --- Test Get Commit By ID ---
+
+def test_get_commit_by_id_success(client, requests_mock):
+    """Tests successfully retrieving a specific commit."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}"
+    mock_response_data = {"id": TEST_COMMIT_ID, "message": "Initial commit"}
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+
+    commit = client.get_commit_by_id(TEST_PROJECT_ID, TEST_COMMIT_ID)
+
+    assert commit == mock_response_data
+    assert requests_mock.last_request.url == mock_url
+
+def test_get_commit_by_id_not_found(client, requests_mock):
+    """Tests 404 when getting a non-existent commit."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/not_a_commit"
+    requests_mock.get(mock_url, status_code=404)
+
+    with pytest.raises(SysMLV2NotFoundError):
+        client.get_commit_by_id(TEST_PROJECT_ID, "not_a_commit")
+
+# --- Test List Commits ---
+
+def test_list_commits_success(client, requests_mock):
+    """Tests successfully listing commits."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits"
+    mock_response_data = [{"id": "commit1"}, {"id": "commit2"}] # API returns list directly
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+
+    commits = client.list_commits(TEST_PROJECT_ID)
+
+    assert commits == mock_response_data
+    assert requests_mock.last_request.url == mock_url
+
+def test_list_commits_success_dict_response(client, requests_mock):
+    """Tests listing commits when API returns a dict with 'elements'."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits"
+    mock_response_data = {"elements": [{"id": "commit1"}, {"id": "commit2"}]}
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+
+    commits = client.list_commits(TEST_PROJECT_ID)
+
+    assert commits == mock_response_data["elements"]
+
+def test_list_commits_project_not_found(client, requests_mock):
+    """Tests 404 when listing commits for a non-existent project."""
+    mock_url = f"{TEST_BASE_URL}/projects/invalid_project/commits"
+    requests_mock.get(mock_url, status_code=404)
+
+    with pytest.raises(SysMLV2NotFoundError):
+        client.list_commits("invalid_project")
+
+
+# --- Test Branch Management ---
+
+TEST_BRANCH_ID = "branch_xyz"
+
+def test_list_branches_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches"
+    mock_response = [{"id": TEST_BRANCH_ID, "name": "develop"}]
+    requests_mock.get(mock_url, json=mock_response, status_code=200)
+    branches = client.list_branches(TEST_PROJECT_ID)
+    assert branches == mock_response
+
+def test_create_branch_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches"
+    request_data = {"name": "feature-branch", "head": {"@id": TEST_COMMIT_ID}}
+    response_data = {"id": "new_branch_id", **request_data}
+    requests_mock.post(mock_url, json=response_data, status_code=201)
+    branch = client.create_branch(TEST_PROJECT_ID, request_data)
+    assert branch == response_data
+    assert requests_mock.last_request.json() == request_data
+
+def test_get_branch_by_id_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches/{TEST_BRANCH_ID}"
+    response_data = {"id": TEST_BRANCH_ID, "name": "develop"}
+    requests_mock.get(mock_url, json=response_data, status_code=200)
+    branch = client.get_branch_by_id(TEST_PROJECT_ID, TEST_BRANCH_ID)
+    assert branch == response_data
+
+def test_delete_branch_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches/{TEST_BRANCH_ID}"
+    requests_mock.delete(mock_url, status_code=204)
+    result = client.delete_branch(TEST_PROJECT_ID, TEST_BRANCH_ID)
+    assert result is None
+
+def test_delete_branch_not_found(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/branches/not_a_branch"
+    requests_mock.delete(mock_url, status_code=404)
+    with pytest.raises(SysMLV2NotFoundError):
+        client.delete_branch(TEST_PROJECT_ID, "not_a_branch")
+
+
+# --- Test Tag Management ---
+
+TEST_TAG_ID = "tag_v1"
+
+def test_list_tags_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags"
+    mock_response = [{"id": TEST_TAG_ID, "name": "v1.0"}]
+    requests_mock.get(mock_url, json=mock_response, status_code=200)
+    tags = client.list_tags(TEST_PROJECT_ID)
+    assert tags == mock_response
+
+def test_create_tag_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags"
+    request_data = {"name": "v1.0-release", "taggedCommit": {"@id": TEST_COMMIT_ID}}
+    response_data = {"id": "new_tag_id", **request_data}
+    requests_mock.post(mock_url, json=response_data, status_code=201)
+    tag = client.create_tag(TEST_PROJECT_ID, request_data)
+    assert tag == response_data
+    assert requests_mock.last_request.json() == request_data
+
+def test_get_tag_by_id_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags/{TEST_TAG_ID}"
+    response_data = {"id": TEST_TAG_ID, "name": "v1.0"}
+    requests_mock.get(mock_url, json=response_data, status_code=200)
+    tag = client.get_tag_by_id(TEST_PROJECT_ID, TEST_TAG_ID)
+    assert tag == response_data
+
+def test_delete_tag_success(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags/{TEST_TAG_ID}"
+    requests_mock.delete(mock_url, status_code=204)
+    result = client.delete_tag(TEST_PROJECT_ID, TEST_TAG_ID)
+    assert result is None
+
+def test_delete_tag_not_found(client, requests_mock):
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/tags/not_a_tag"
+    requests_mock.delete(mock_url, status_code=404)
+    with pytest.raises(SysMLV2NotFoundError):
+        client.delete_tag(TEST_PROJECT_ID, "not_a_tag")
+
+
+# --- Test List Elements ---
+
+def test_list_elements_success(client, requests_mock):
+    """Tests successfully listing elements in a commit."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements"
+    mock_response_data = [{"id": "elem1"}, {"id": "elem2"}]
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+    elements = client.list_elements(TEST_PROJECT_ID, TEST_COMMIT_ID)
+    assert elements == mock_response_data
+
+def test_list_elements_commit_not_found(client, requests_mock):
+    """Tests 404 when listing elements for non-existent commit."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/invalid_commit/elements"
+    requests_mock.get(mock_url, status_code=404)
+    with pytest.raises(SysMLV2NotFoundError):
+        client.list_elements(TEST_PROJECT_ID, "invalid_commit")
+
+
+# --- Test List Relationships ---
+
+def test_list_relationships_success(client, requests_mock):
+    """Tests successfully listing relationships for an element."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/{TEST_ELEMENT_ID}/relationships?direction=both"
+    mock_response_data = [{"id": "rel1", "source": TEST_ELEMENT_ID}, {"id": "rel2", "target": TEST_ELEMENT_ID}]
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+    relationships = client.list_relationships(TEST_PROJECT_ID, TEST_ELEMENT_ID, TEST_COMMIT_ID)
+    assert relationships == mock_response_data
+
+def test_list_relationships_with_direction(client, requests_mock):
+    """Tests listing relationships with specific direction."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/{TEST_ELEMENT_ID}/relationships?direction=out"
+    mock_response_data = [{"id": "rel1", "source": TEST_ELEMENT_ID}]
+    requests_mock.get(mock_url, json=mock_response_data, status_code=200)
+    relationships = client.list_relationships(TEST_PROJECT_ID, TEST_ELEMENT_ID, TEST_COMMIT_ID, direction="out")
+    assert relationships == mock_response_data
+    assert requests_mock.last_request.qs == {'direction': ['out']}
+
+def test_list_relationships_element_not_found(client, requests_mock):
+    """Tests 404 when listing relationships for non-existent element."""
+    mock_url = f"{TEST_BASE_URL}/projects/{TEST_PROJECT_ID}/commits/{TEST_COMMIT_ID}/elements/invalid_element/relationships?direction=both"
+    requests_mock.get(mock_url, status_code=404)
+    with pytest.raises(SysMLV2NotFoundError):
+        client.list_relationships(TEST_PROJECT_ID, "invalid_element", TEST_COMMIT_ID)

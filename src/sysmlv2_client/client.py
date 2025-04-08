@@ -150,8 +150,15 @@ class SysMLV2Client:
             method="POST",
             endpoint="/projects",
             data=project_data,
-            expected_status=201  # Typically 201 Created for POST
+            expected_status=200  # Flexo seems to return 200 OK on successful POST
         )
+    def get_project_by_id(self, project_id: str) -> Dict[str, Any]:
+        """
+        Retrieves a specific project by its ID.
+        Corresponds to: GET /projects/{project_id}
+        """
+        endpoint = f"/projects/{project_id}"
+        return self._request(method="GET", endpoint=endpoint, expected_status=200)
 
     def get_element(self, project_id: str, element_id: str, commit_id: str = "main") -> Dict[str, Any]:
         """
@@ -161,50 +168,8 @@ class SysMLV2Client:
         endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{element_id}"
         return self._request(method="GET", endpoint=endpoint, expected_status=200)
 
-    def create_element(self, project_id: str, element_data: Dict[str, Any], commit_id: str = "main") -> Dict[str, Any]:
-        """
-        Creates a new element within a specific commit of a project.
-        Corresponds to: POST /projects/{project_id}/commits/{commit_id}/elements
-        Args:
-            project_id: The ID of the project.
-            element_data: Dictionary representing the element to create.
-            commit_id: The commit ID (defaults to 'main').
-        """
-        endpoint = f"/projects/{project_id}/commits/{commit_id}/elements"
-        return self._request(
-            method="POST",
-            endpoint=endpoint,
-            data=element_data,
-            expected_status=201
-        )
-
-    def update_element(self, project_id: str, element_id: str, element_data: Dict[str, Any], commit_id: str = "main") -> Dict[str, Any]:
-        """
-        Updates an existing element within a specific commit of a project.
-        Corresponds to: PUT /projects/{project_id}/commits/{commit_id}/elements/{element_id}
-        Args:
-            project_id: The ID of the project.
-            element_id: The ID of the element to update.
-            element_data: Dictionary representing the updated element data.
-            commit_id: The commit ID (defaults to 'main').
-        """
-        endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{element_id}"
-        return self._request(
-            method="PUT",
-            endpoint=endpoint,
-            data=element_data,
-            expected_status=200
-        )
-
-    def delete_element(self, project_id: str, element_id: str, commit_id: str = "main") -> None:
-        """
-        Deletes an element from a specific commit within a project.
-        Corresponds to: DELETE /projects/{project_id}/commits/{commit_id}/elements/{element_id}
-        """
-        endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{element_id}"
-        self._request(method="DELETE", endpoint=endpoint, expected_status=204)
-        # DELETE requests typically return no content on success
-        return None
+    # Note: create_element, update_element, delete_element methods removed
+    # as modifications are handled via create_commit according to API spec/cookbook examples.
 
     def get_owned_elements(self, project_id: str, element_id: str, commit_id: str = "main") -> List[Dict[str, Any]]:
         """
@@ -229,16 +194,193 @@ class SysMLV2Client:
 
     def create_commit(self, project_id: str, commit_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Creates a new commit in a project.
+        Creates a new commit in a project. Also used to create, update, or delete
+        elements by including a 'change' array within the commit_data.
         Corresponds to: POST /projects/{project_id}/commits
         Args:
             project_id: The ID of the project.
-            commit_data: Dictionary representing the commit details (e.g., message, parent commit).
+            commit_data: Dictionary representing the commit details.
+                         To modify elements, include a 'change' key with a list of
+                         DataVersion objects specifying the element 'payload' and 'identity'.
+                         Set payload to None for deletion. See API Cookbook for examples.
         """
         endpoint = f"/projects/{project_id}/commits"
         return self._request(
             method="POST",
             endpoint=endpoint,
             data=commit_data,
-            expected_status=201
+            expected_status=200 # Assuming consistency with create_project
         )
+    def get_commit_by_id(self, project_id: str, commit_id: str) -> Dict[str, Any]:
+        """
+        Retrieves a specific commit by its ID within a project.
+        Corresponds to: GET /projects/{project_id}/commits/{commit_id}
+        """
+        endpoint = f"/projects/{project_id}/commits/{commit_id}"
+        return self._request(method="GET", endpoint=endpoint, expected_status=200)
+
+    def list_commits(self, project_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves a list of commits for a specific project.
+        Corresponds to: GET /projects/{project_id}/commits
+        """
+        endpoint = f"/projects/{project_id}/commits"
+        response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
+        # Assuming the API returns a list directly or a dict with an 'elements' key
+        if isinstance(response_data, list):
+            return response_data
+        elif isinstance(response_data, dict):
+             # TODO: Verify the actual key for the list (e.g., 'commits', 'elements')
+            return response_data.get('elements', [])
+        else:
+            return []
+
+    # --- Branch Management ---
+
+    def list_branches(self, project_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves a list of branches for a specific project.
+        Corresponds to: GET /projects/{project_id}/branches
+        """
+        endpoint = f"/projects/{project_id}/branches"
+        response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
+        # Assuming the API returns a list directly or a dict with an 'elements' key
+        if isinstance(response_data, list):
+            return response_data
+        elif isinstance(response_data, dict):
+             # TODO: Verify the actual key for the list (e.g., 'branches', 'elements')
+            return response_data.get('elements', [])
+        else:
+            return []
+
+    def create_branch(self, project_id: str, branch_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Creates a new branch in a project.
+        Corresponds to: POST /projects/{project_id}/branches
+        Args:
+            project_id: The ID of the project.
+            branch_data: Dictionary representing the branch details (e.g., name, head commit).
+                         Requires 'name' and 'head' commit ID according to spec.
+        """
+        endpoint = f"/projects/{project_id}/branches"
+        return self._request(
+            method="POST",
+            endpoint=endpoint,
+            data=branch_data,
+            expected_status=200 # Assuming consistency with create_project
+        )
+
+    def get_branch_by_id(self, project_id: str, branch_id: str) -> Dict[str, Any]:
+        """
+        Retrieves a specific branch by its ID within a project.
+        Corresponds to: GET /projects/{project_id}/branches/{branch_id}
+        """
+        endpoint = f"/projects/{project_id}/branches/{branch_id}"
+        return self._request(method="GET", endpoint=endpoint, expected_status=200)
+
+    def delete_branch(self, project_id: str, branch_id: str) -> None:
+        """
+        Deletes a branch by its ID within a project.
+        Corresponds to: DELETE /projects/{project_id}/branches/{branch_id}
+        """
+        endpoint = f"/projects/{project_id}/branches/{branch_id}"
+        self._request(method="DELETE", endpoint=endpoint, expected_status=204)
+        return None
+
+    # --- Tag Management ---
+
+    def list_tags(self, project_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves a list of tags for a specific project.
+        Corresponds to: GET /projects/{project_id}/tags
+        """
+        endpoint = f"/projects/{project_id}/tags"
+        response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
+        # Assuming the API returns a list directly or a dict with an 'elements' key
+        if isinstance(response_data, list):
+            return response_data
+        elif isinstance(response_data, dict):
+             # TODO: Verify the actual key for the list (e.g., 'tags', 'elements')
+            return response_data.get('elements', [])
+        else:
+            return []
+
+    def create_tag(self, project_id: str, tag_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Creates a new tag in a project.
+        Corresponds to: POST /projects/{project_id}/tags
+        Args:
+            project_id: The ID of the project.
+            tag_data: Dictionary representing the tag details (e.g., name, tagged commit).
+                      Requires 'name' and 'taggedCommit' commit ID according to spec.
+        """
+        endpoint = f"/projects/{project_id}/tags"
+        return self._request(
+            method="POST",
+            endpoint=endpoint,
+            data=tag_data,
+            expected_status=200 # Assuming consistency with create_project
+        )
+
+    def get_tag_by_id(self, project_id: str, tag_id: str) -> Dict[str, Any]:
+        """
+        Retrieves a specific tag by its ID within a project.
+        Corresponds to: GET /projects/{project_id}/tags/{tag_id}
+        """
+        endpoint = f"/projects/{project_id}/tags/{tag_id}"
+        return self._request(method="GET", endpoint=endpoint, expected_status=200)
+
+    def delete_tag(self, project_id: str, tag_id: str) -> None:
+        """
+        Deletes a tag by its ID within a project.
+        Corresponds to: DELETE /projects/{project_id}/tags/{tag_id}
+        """
+        endpoint = f"/projects/{project_id}/tags/{tag_id}"
+        self._request(method="DELETE", endpoint=endpoint, expected_status=204)
+        return None
+
+    # --- Element/Relationship Listing ---
+
+    def list_elements(self, project_id: str, commit_id: str = "main") -> List[Dict[str, Any]]:
+        """
+        Retrieves a list of all elements for a specific commit within a project.
+        Corresponds to: GET /projects/{project_id}/commits/{commit_id}/elements
+        """
+        endpoint = f"/projects/{project_id}/commits/{commit_id}/elements"
+        response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
+        # Assuming the API returns a list directly or a dict with an 'elements' key
+        if isinstance(response_data, list):
+            return response_data
+        elif isinstance(response_data, dict):
+             # TODO: Verify the actual key for the list (e.g., 'elements')
+            return response_data.get('elements', [])
+        else:
+            return []
+
+    def list_relationships(
+        self,
+        project_id: str,
+        related_element_id: str,
+        commit_id: str = "main",
+        direction: str = "both"
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves relationships connected to a specific element.
+        Corresponds to: GET /projects/{project_id}/commits/{commit_id}/elements/{relatedElementId}/relationships
+        Args:
+            project_id: The ID of the project.
+            related_element_id: The ID of the element whose relationships are sought.
+            commit_id: The commit ID (defaults to 'main').
+            direction: Filter for relationship direction ('in', 'out', 'both'). Defaults to 'both'.
+        """
+        endpoint = f"/projects/{project_id}/commits/{commit_id}/elements/{related_element_id}/relationships"
+        params = {'direction': direction}
+        response_data = self._request(method="GET", endpoint=endpoint, params=params, expected_status=200)
+        # Assuming the API returns a list directly or a dict with an 'elements' key
+        if isinstance(response_data, list):
+            return response_data
+        elif isinstance(response_data, dict):
+             # TODO: Verify the actual key for the list (e.g., 'relationships', 'elements')
+            return response_data.get('elements', [])
+        else:
+            return []
