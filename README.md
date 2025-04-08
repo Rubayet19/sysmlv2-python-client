@@ -31,7 +31,6 @@ This client is designed to work with a running instance of the OpenMBEE Flexo Sy
 
 ### 2. Install Client (Development)
 
-Currently, you can use the client directly from the source code. Ensure the `src` directory is in your Python path.
 
 ```python
 # Example: Add src to path if running scripts/notebooks from project root
