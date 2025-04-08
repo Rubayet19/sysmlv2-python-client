@@ -128,7 +128,15 @@ class SysMLV2Client:
         response_data = self._request(method="GET", endpoint="/projects", expected_status=200)
         # Extract the list of projects, default to empty list if not found
         # TODO: Verify the actual key for the list in the API response (e.g., 'projects', 'elements')
-        return response_data.get('elements', [])
+        if isinstance(response_data, list):
+            return response_data # API returned a list directly
+        elif isinstance(response_data, dict):
+             # TODO: Verify the actual key for the list in the API response (e.g., 'projects', 'elements')
+            return response_data.get('elements', []) # Try to extract from dict
+        else:
+            # Unexpected response type, raise an error or return empty list?
+            # For now, return empty list, but logging a warning might be good
+            return []
 
     def create_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -210,7 +218,14 @@ class SysMLV2Client:
         response_data = self._request(method="GET", endpoint=endpoint, expected_status=200)
         # Assuming the API returns a structure like {"elements": [...]}
         # TODO: Verify the actual key for the list in the API response
-        return response_data.get('elements', [])
+        if isinstance(response_data, list):
+            return response_data # API returned a list directly
+        elif isinstance(response_data, dict):
+            # TODO: Verify the actual key for the list in the API response
+            return response_data.get('elements', []) # Try to extract from dict
+        else:
+            # Unexpected response type
+            return []
 
     def create_commit(self, project_id: str, commit_data: Dict[str, Any]) -> Dict[str, Any]:
         """

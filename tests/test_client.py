@@ -95,7 +95,7 @@ def test_get_projects_success_no_elements_key(client, requests_mock):
     # The client should return an empty list due to .get('elements', [])
     projects = client.get_projects()
 
-    assert projects == [] # Default value when key is missing
+    assert projects == mock_response_data # Should return the list directly
 
 def test_get_projects_auth_error(client, requests_mock):
     """Tests authentication error during get_projects."""
